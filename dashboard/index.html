@@ -1,0 +1,2506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'><path d='M288 96L288 64C288 46.3 302.3 32 320 32C337.7 32 352 46.3 352 64L352 96L416 96C469 96 512 139 512 192C512 245 469 288 416 288L400 288L400 224L416 224C433.7 224 448 209.7 448 192C448 174.3 433.7 160 416 160L352 160L352 352L384 352C437 352 480 395 480 448C480 495.6 445.4 535.1 400 542.7L400 475.7C409.6 470.2 416 459.8 416 448C416 430.3 401.7 416 384 416L352 416L352 576C352 593.7 337.7 608 320 608C302.3 608 288 593.7 288 576L288 544L256 544C238.3 544 224 529.7 224 512C224 494.3 238.3 480 256 480L288 480L288 416L256 416C203 416 160 373 160 320C160 272.4 194.6 232.9 240 225.3L240 292.3C230.4 297.8 224 308.2 224 320C224 337.7 238.3 352 256 352L288 352L288 160L215.4 160C204.3 179.1 183.7 192 160 192L144 192C117.5 192 96 170.5 96 144C96 117.5 117.5 96 144 96L288 96z'/></svg>">
+  <title>EPISCOPE — Bangladesh Epidemiological Command & Decision System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
+  <!-- Load bundle.js from current directory or ./data/ subfolder -->
+  <script src="./bundle.js"></script>
+  <script src="./data/bundle.js"></script>
+  <style>
+    :root {
+      /* Clinical Swiss Light Palette */
+      --bg-canvas: #F4F6F9;
+      --bg-surface: #FFFFFF;
+      --bg-subtle: #F8FAFC;
+      --bg-muted: #F1F5F9;
+      --text-primary: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #64748B;
+      --border-hairline: #E2E8F0;
+      --border-strong: #CBD5E1;
+
+      /* Semantic Accents */
+      --accent-indigo: #4F46E5;
+      --accent-indigo-soft: #EEF2FF;
+      --accent-crimson: #E11D48;
+      --accent-crimson-soft: #FFF1F2;
+      --accent-amber: #D97706;
+      --accent-amber-soft: #FFFBEB;
+      --accent-emerald: #059669;
+      --accent-emerald-soft: #ECFDF5;
+      --accent-sky: #0284C7;
+
+      /* Layout & Elevation */
+      --rail-width: 236px;
+      --rail-collapsed-width: 68px;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --radius-sm: 6px;
+      --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+      --shadow-float: 0 10px 30px -5px rgba(15, 23, 42, 0.07), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* App Shell with Collapsible Floating Rail */
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+      padding: 14px;
+      gap: 14px;
+    }
+
+    /* Collapsible Floating Rail */
+    .floating-rail {
+      width: var(--rail-width);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-float);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 12px;
+      transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      position: sticky;
+      top: 14px;
+      height: calc(100vh - 28px);
+      z-index: 40;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .floating-rail.collapsed {
+      width: var(--rail-collapsed-width);
+      padding: 16px 10px;
+    }
+
+    .rail-brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 6px 16px;
+      border-bottom: 1px solid var(--border-hairline);
+      margin-bottom: 14px;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: var(--text-primary);
+      color: #FFFFFF;
+      display: grid;
+      place-items: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-mark span {
+      color: #F43F5E;
+    }
+
+    .brand-text-wrap {
+      transition: opacity 0.15s ease;
+    }
+
+    .floating-rail.collapsed .brand-text-wrap,
+    .floating-rail.collapsed .nav-label,
+    .floating-rail.collapsed .rail-footer-details,
+    .floating-rail.collapsed .nav-badge {
+      opacity: 0;
+      pointer-events: none;
+      width: 0;
+      display: none;
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+    }
+
+    .brand-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .rail-toggle-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+
+    .rail-toggle-btn:hover {
+      background: var(--bg-muted);
+      color: var(--text-primary);
+    }
+
+    .floating-rail.collapsed .rail-brand {
+      flex-direction: column;
+      gap: 10px;
+      padding-bottom: 12px;
+    }
+
+    /* Navigation Items */
+    .rail-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rail-section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 6px 10px 4px;
+    }
+
+    .floating-rail.collapsed .rail-section-label {
+      display: none;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+      position: relative;
+    }
+
+    .floating-rail.collapsed .nav-btn {
+      justify-content: center;
+      padding: 10px 0;
+    }
+
+    .nav-btn svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      stroke-width: 2;
+    }
+
+    .nav-btn:hover {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    .nav-btn.active {
+      background: var(--accent-indigo-soft);
+      color: var(--accent-indigo);
+      border-color: rgba(79, 70, 229, 0.2);
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--accent-crimson-soft);
+      color: var(--accent-crimson);
+    }
+
+    .rail-footer {
+      border-top: 1px solid var(--border-hairline);
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+      flex-shrink: 0;
+    }
+
+    /* Main Workspace Container */
+    .workspace {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Swiss Command Topbar */
+    .command-bar {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 12px 18px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .command-title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .view-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .view-subtitle {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .command-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .control-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 5px 10px;
+    }
+
+    .control-pill label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .swiss-select {
+      border: none;
+      background: transparent;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-primary);
+      cursor: pointer;
+      outline: none;
+      padding-right: 4px;
+    }
+
+    .reset-filter-btn {
+      padding: 6px 11px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-surface);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .reset-filter-btn:hover {
+      border-color: var(--text-primary);
+      color: var(--text-primary);
+    }
+
+    /* 4-Card KPI Telemetry Ribbon */
+    .kpi-bento-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      padding: 15px 18px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--accent-indigo);
+    }
+
+    .kpi-card.kpi-crimson::before { background: var(--accent-crimson); }
+    .kpi-card.kpi-amber::before { background: var(--accent-amber); }
+    .kpi-card.kpi-emerald::before { background: var(--accent-emerald); }
+
+    .kpi-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .kpi-label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .kpi-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg-muted);
+      color: var(--text-secondary);
+    }
+
+    .kpi-value {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      line-height: 1.15;
+    }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Main 12-Column Swiss Bento Workspace */
+    .bento-workspace {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    /* Left Persistent Geospatial Dock (5 cols) */
+    .geo-dock {
+      grid-column: span 5;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Right Dynamic Analytical Stage (7 cols) */
+    .stage-dock {
+      grid-column: span 7;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .bento-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-hairline);
+      padding-bottom: 10px;
+    }
+
+    .card-title-wrap h3 {
+      font-family: var(--font-display);
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .card-title-wrap p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Segmented Metric Switcher */
+    .segmented-group {
+      display: inline-flex;
+      background: var(--bg-muted);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border-hairline);
+      gap: 2px;
+    }
+
+    .seg-btn {
+      border: none;
+      background: transparent;
+      padding: 4px 9px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .seg-btn.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    /* Map Canvas & Legend */
+    .map-viewport {
+      position: relative;
+      width: 100%;
+      height: 420px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    #map-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .map-overlay-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(6px);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      padding: 5px 9px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .map-legend-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-top: 4px;
+    }
+
+    .legend-gradient {
+      flex: 1;
+      height: 8px;
+      margin: 0 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #EEF2FF 0%, #818CF8 45%, #4F46E5 75%, #E11D48 100%);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    /* Top Severity Ranking List */
+    .ranking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .rank-item {
+      display: grid;
+      grid-template-columns: 24px 115px 1fr 68px;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-subtle);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+
+    .rank-item:hover,
+    .rank-item.selected {
+      border-color: var(--accent-indigo);
+      background: var(--accent-indigo-soft);
+    }
+
+    .rank-idx {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .rank-name {
+      font-weight: 600;
+      font-size: 12.5px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rank-bar-track {
+      height: 7px;
+      background: var(--bg-muted);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .rank-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--accent-indigo);
+    }
+
+    .rank-val {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 700;
+      text-align: right;
+      color: var(--text-primary);
+    }
+
+    /* Stage Views (Tab Panels) */
+    .stage-panel {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .stage-panel.active {
+      display: flex;
+    }
+
+    /* SVG Chart Wrappers */
+    .chart-box {
+      width: 100%;
+      position: relative;
+    }
+
+    .chart-svg {
+      width: 100%;
+      display: block;
+    }
+
+    /* Policy Simulator Control Strip (C1 & C3) */
+    .sim-control-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 14px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 14px;
+    }
+
+    .slider-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .slider-readout {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-indigo);
+      background: var(--accent-indigo-soft);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    input[type="range"].swiss-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--border-strong);
+      border-radius: 999px;
+      outline: none;
+    }
+
+    input[type="range"].swiss-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-indigo);
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.3);
+      cursor: pointer;
+    }
+
+    .sim-metrics-mini {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .sim-stat-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .sim-stat-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .sim-stat-val {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 2px;
+    }
+
+    /* Supply & Resource Grids */
+    .supply-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .supply-stat-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+
+    .supply-stat-card .lbl {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .supply-stat-card .val {
+      font-family: var(--font-display);
+      font-size: 21px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-top: 3px;
+    }
+
+    .coverage-bar-outer {
+      height: 10px;
+      background: var(--bg-muted);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border-hairline);
+    }
+
+    .coverage-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-indigo), var(--accent-emerald));
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .resource-type-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+      gap: 10px;
+    }
+
+    .res-item-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .res-item-head {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Clinical Alerts Table */
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .swiss-search {
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-subtle);
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      color: var(--text-primary);
+      width: 240px;
+      outline: none;
+    }
+
+    .swiss-search:focus {
+      border-color: var(--accent-indigo);
+      background: var(--bg-surface);
+    }
+
+    .table-scroll {
+      max-height: 310px;
+      overflow-y: auto;
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+    }
+
+    table.swiss-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12.5px;
+    }
+
+    table.swiss-table th {
+      position: sticky;
+      top: 0;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-hairline);
+      padding: 9px 12px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      z-index: 2;
+    }
+
+    table.swiss-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-hairline);
+      color: var(--text-primary);
+    }
+
+    table.swiss-table tr:hover td {
+      background: var(--accent-indigo-soft);
+      cursor: pointer;
+    }
+
+    .z-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .z-pill.critical {
+      background: var(--accent-crimson-soft);
+      color: var(--accent-crimson);
+    }
+
+    .z-pill.elevated {
+      background: var(--accent-amber-soft);
+      color: var(--accent-amber);
+    }
+
+    /* Floating Tooltip */
+    #tooltip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      background: rgba(15, 23, 42, 0.95);
+      color: #F8FAFC;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+      opacity: 0;
+      transition: opacity 0.12s ease;
+      max-width: 260px;
+      font-family: var(--font-sans);
+    }
+
+    @media (max-width: 1180px) {
+      .kpi-bento-strip {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .geo-dock, .stage-dock {
+        grid-column: span 12;
+      }
+      .sim-control-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<div class="app-shell">
+  <!-- Collapsible Floating Rail -->
+  <aside class="floating-rail" id="floating-rail">
+    <div>
+      <div class="rail-brand">
+        <div class="brand-lockup">
+          <div class="brand-mark">EP<span>+</span></div>
+          <div class="brand-text-wrap">
+            <div class="brand-title">EPISCOPE</div>
+            <div class="brand-sub">BGD Medallion Gold</div>
+          </div>
+        </div>
+        <button class="rail-toggle-btn" id="rail-toggle" title="Collapse / Expand Navigation Rail">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="rail-section-label">Surveillance Modules</div>
+      <nav class="rail-nav">
+        <button class="nav-btn active" data-view="overview" id="nav-overview" title="Overview & Forecast">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <span class="nav-label">Overview</span>
+        </button>
+        <button class="nav-btn" data-view="trends" id="nav-trends" title="Seasonal Trends & 52W Calendar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span class="nav-label">Trends & Seasonality</span>
+        </button>
+        <button class="nav-btn" data-view="supplies" id="nav-supplies" title="Supplies & C3 Equity Simulator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span class="nav-label">Supplies & C3 Equity</span>
+        </button>
+        <button class="nav-btn" data-view="alerts" id="nav-alerts" title="Alerts & C1 ROC Thresholds">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="nav-label">Early Warnings (C1)</span>
+          <span class="nav-badge" id="nav-alert-badge">0</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="rail-footer">
+      <div class="status-pill" title="Live PySpark Medallion Telemetry">
+        <span class="status-dot"></span>
+        <span class="rail-footer-details" id="status-text">Loading telemetry…</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Workspace -->
+  <div class="workspace">
+    <!-- Top Swiss Command Bar -->
+    <header class="command-bar">
+      <div class="command-title-group">
+        <h1 class="view-title" id="topbar-title">National Epidemiological Overview</h1>
+        <span class="view-subtitle" id="topbar-subtitle">64 Districts · PySpark Gold Lakehouse</span>
+      </div>
+
+      <div class="command-controls">
+        <div class="control-pill">
+          <label for="disease-select">Pathogen</label>
+          <select id="disease-select" class="swiss-select"></select>
+        </div>
+
+        <div class="control-pill">
+          <label for="district-select">District</label>
+          <select id="district-select" class="swiss-select">
+            <option value="ALL">All 64 Districts (National)</option>
+          </select>
+        </div>
+
+        <button class="reset-filter-btn" id="reset-district-btn" title="Reset to National View">
+          Reset Scope
+        </button>
+      </div>
+    </header>
+
+    <!-- 4-Card KPI Telemetry Ribbon -->
+    <section class="kpi-bento-strip">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-label">Cases This Week</span>
+          <span class="kpi-tag" id="kpi-week-tag">Latest Epi-Week</span>
+        </div>
+        <div class="kpi-value" id="kpi-cases">—</div>
+        <div class="kpi-sub" id="kpi-cases-sub">Active surveillance reporting</div>
+      </div>
+
+      <div class="kpi-card kpi-crimson">
+        <div class="kpi-header">
+          <span class="kpi-label">Alerts Raised</span>
+          <span class="kpi-tag" id="kpi-thresh-tag">Z ≥ 2.5σ</span>
+        </div>
+        <div class="kpi-value" id="kpi-alerts">—</div>
+        <div class="kpi-sub" id="kpi-alerts-sub">Outbreak signals across history</div>
+      </div>
+
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-header">
+          <span class="kpi-label">Next Week's Forecast</span>
+          <span class="kpi-tag">Spark 80% PI</span>
+        </div>
+        <div class="kpi-value" id="kpi-forecast">—</div>
+        <div class="kpi-sub" id="kpi-forecast-sub">Projected 1-step horizon</div>
+      </div>
+
+      <div class="kpi-card kpi-emerald">
+        <div class="kpi-header">
+          <span class="kpi-label">Supplies Dispatched</span>
+          <span class="kpi-tag">PuLP Allocation</span>
+        </div>
+        <div class="kpi-value" id="kpi-supplies">—</div>
+        <div class="kpi-sub" id="kpi-supplies-sub">Coverage of net district need</div>
+      </div>
+    </section>
+
+    <!-- 12-Column Swiss Bento Grid -->
+    <main class="bento-workspace">
+      <!-- Left Dock: Persistent 64-District Geospatial Map + Top-6 Ranking -->
+      <section class="geo-dock">
+        <div class="bento-card">
+          <div class="card-head">
+            <div class="card-title-wrap">
+              <h3>Geospatial Surveillance Map</h3>
+              <p id="map-sub-caption">Click any district to filter time-series, supplies & alerts</p>
+            </div>
+            <div class="segmented-group" id="map-metric-toggle">
+              <button class="seg-btn active" data-metric="cases_num">Cases</button>
+              <button class="seg-btn" data-metric="incidence_per_100k">Inc/100k</button>
+              <button class="seg-btn" data-metric="z_score">Z-Score</button>
+            </div>
+          </div>
+
+          <div class="map-viewport">
+            <div class="map-overlay-badge" id="map-scope-badge">Scope: National (64 Districts)</div>
+            <svg id="map-svg"></svg>
+          </div>
+
+          <div class="map-legend-bar">
+            <span id="legend-min">Low (0)</span>
+            <div class="legend-gradient"></div>
+            <span id="legend-max">High</span>
+          </div>
+        </div>
+
+        <div class="bento-card">
+          <div class="card-head">
+            <div class="card-title-wrap">
+              <h3>Highest Severity Districts</h3>
+              <p>Top 6 hotspots ranked by active map metric</p>
+            </div>
+          </div>
+          <div class="ranking-list" id="most-cases-container"></div>
+        </div>
+      </section>
+
+      <!-- Right Dock: Dynamic Analytical Stage -->
+      <section class="stage-dock">
+
+        <!-- PANEL 1: OVERVIEW -->
+        <div class="stage-panel active" id="panel-overview">
+          <div class="bento-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <h3>Epidemic Trajectory & 4-Week Spark Forecast</h3>
+                <p id="ts-sub-caption">52-week historical weekly case counts + 4-week forecast horizon with 80% prediction interval</p>
+              </div>
+            </div>
+            <div class="chart-box">
+              <svg id="ts-svg" class="chart-svg" height="310"></svg>
+            </div>
+          </div>
+
+          <div class="bento-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <h3>Active Outbreak Watchlist (Top Anomalies)</h3>
+                <p>Latest Epi-Week & historical signals exceeding Z-score threshold (<span id="ov-thresh-readout">2.5σ</span>)</p>
+              </div>
+              <button class="reset-filter-btn" id="jump-to-alerts-btn">Open C1 Simulator →</button>
+            </div>
+            <div class="table-scroll" style="max-height: 225px;">
+              <table class="swiss-table">
+                <thead>
+                  <tr>
+                    <th>District</th>
+                    <th>Division</th>
+                    <th>Epi Week</th>
+                    <th>Cases / Baseline</th>
+                    <th>Z-Score</th>
+                  </tr>
+                </thead>
+                <tbody id="overview-alerts-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL 2: TRENDS & SEASONALITY -->
+        <div class="stage-panel" id="panel-trends">
+          <div class="bento-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <h3>Division × 52 Epi-Week Seasonal Preparedness Matrix</h3>
+                <p>Historical incidence intensity across Bangladesh divisions to guide pre-monsoon & winter surge staging</p>
+              </div>
+            </div>
+            <div class="chart-box">
+              <svg id="cal-svg" class="chart-svg" height="300"></svg>
+            </div>
+          </div>
+
+          <div class="bento-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <h3>Longitudinal Trend Reference</h3>
+                <p>Synchronized 52-week curve + 4-week forecast for selected pathogen & district</p>
+              </div>
+            </div>
+            <div class="chart-box">
+              <svg id="ts-trends-svg" class="chart-svg" height="240"></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL 3: SUPPLIES & CONFLICT C3 EQUITY SIMULATOR -->
+        <div class="stage-panel" id="panel-supplies">
+          <div class="bento-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <h3>Conflict C3 — PuLP Budget & Equity Floor Simulator (α)</h3>
+                <p>Explore how enforcing a minimum district equity guarantee (α) trades off against total national unmet demand</p>
+              </div>
+            </div>
+
+            <div class="sim-control-grid">
+              <div class="slider-wrap">
+                <div class="slider-head">
+                  <span class="slider-title">Total Deployment Budget</span>
+                  <span class="slider-readout" id="c3-budget-label">5.0M BDT</span>
+                </div>
+                <input type="range" id="c3-budget-slider" class="swiss-slider" min="1000000" max="10000000" step="500000" value="5000000" />
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; flex-wrap:wrap; gap:6px;">
+                  <span class="slider-title">Equity Floor Weight (α)</span>
+                  <div class="segmented-group" id="c3-alpha-group">
+                    <button class="seg-btn" data-alpha="0">0.0 (Pure Efficiency)</button>
+                    <button class="seg-btn active" data-alpha="0.3">0.3</button>
+                    <button class="seg-btn" data-alpha="0.6">0.6</button>
+                    <button class="seg-btn" data-alpha="0.95">0.95 (Strict Equity)</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sim-metrics-mini">
+                <div class="sim-stat-box">
+                  <span class="sim-stat-label">Unmet Demand</span>
+                  <span class="sim-stat-val" id="c3-unmet-val">—</span>
+                </div>
+                <div class="sim-stat-box">
+                  <span class="sim-stat-label">Equity Penalty</span>
+                  <span class="sim-stat-val" id="c3-penalty-val">—</span>
+                </div>
+                <div class="sim-stat-box">
+                  <span class="sim-stat-label">Policy Regime</span>
+                  <span class="sim-stat-val" id="c3-regime-val" style="font-size:12px;">Balanced</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-box">
+              <svg id="c3-svg" class="chart-svg" height="215"></svg>
+            </div>
+          </div>
+
+          <div class="bento-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <h3>Medical Resource Fulfillment & District Gap</h3>
+                <p id="sup-scope-caption">Current commodity dispatch vs. net caseload demand (Demand − Stock)</p>
+              </div>
+            </div>
+
+            <div class="supply-kpi-row">
+              <div class="supply-stat-card">
+                <div class="lbl">Net Units Needed</div>
+                <div class="val" id="sup-needed">—</div>
+              </div>
+              <div class="supply-stat-card">
+                <div class="lbl">Units Dispatched</div>
+                <div class="val" id="sup-allocated" style="color:var(--accent-emerald);">—</div>
+              </div>
+              <div class="supply-stat-card">
+                <div class="lbl">Unmet Resource Gap</div>
+                <div class="val" id="sup-gap" style="color:var(--accent-crimson);">—</div>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11px; color:var(--text-secondary);">
+              <span>Overall Supply Fulfillment Rate</span>
+              <strong id="sup-cov-pct">0%</strong>
+            </div>
+            <div class="coverage-bar-outer">
+              <div class="coverage-bar-inner" id="sup-cov-bar" style="width:0%;"></div>
+            </div>
+
+            <div class="resource-type-grid" id="sup-type-grid"></div>
+
+            <div class="chart-box" style="margin-top:6px;">
+              <svg id="sup-dist-bars" class="chart-svg" height="230"></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL 4: ALERTS & CONFLICT C1 ROC THRESHOLD SIMULATOR -->
+        <div class="stage-panel" id="panel-alerts">
+          <div class="bento-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <h3>Conflict C1 — Outbreak Z-Score Threshold ROC Simulator</h3>
+                <p>Tune the anomaly detection threshold (Z) to balance Outbreak Sensitivity against False Alerts per District-Year</p>
+              </div>
+            </div>
+
+            <div class="sim-control-grid">
+              <div class="slider-wrap">
+                <div class="slider-head">
+                  <span class="slider-title">Z-Score Alert Threshold (σ)</span>
+                  <span class="slider-readout" id="c1-thresh-label">Z ≥ 2.5σ</span>
+                </div>
+                <input type="range" id="c1-thresh-slider" class="swiss-slider" min="1.5" max="4.0" step="0.5" value="2.5" />
+                <p style="font-size:11.5px; color:var(--text-muted);">
+                  Lowering Z catches outbreaks earlier but increases false field dispatches; raising Z suppresses noise but delays response.
+                </p>
+              </div>
+
+              <div class="sim-metrics-mini">
+                <div class="sim-stat-box">
+                  <span class="sim-stat-label">Sensitivity</span>
+                  <span class="sim-stat-val" id="c1-sens-val" style="color:var(--accent-indigo);">—</span>
+                </div>
+                <div class="sim-stat-box">
+                  <span class="sim-stat-label">False Alerts/Yr</span>
+                  <span class="sim-stat-val" id="c1-fa-val" style="color:var(--accent-crimson);">—</span>
+                </div>
+                <div class="sim-stat-box">
+                  <span class="sim-stat-label">Median Delay</span>
+                  <span class="sim-stat-val" id="c1-delay-val">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-box">
+              <svg id="c1-svg" class="chart-svg" height="205"></svg>
+            </div>
+          </div>
+
+          <div class="bento-card">
+            <div class="card-head">
+              <div class="card-title-wrap">
+                <h3>Active Early Warning Signals</h3>
+                <p id="alerts-table-sub">Filtered dynamically by your selected Z-Score threshold above</p>
+              </div>
+              <div class="table-toolbar">
+                <input type="text" id="alert-search" class="swiss-search" placeholder="Filter district or division…" />
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="swiss-table">
+                <thead>
+                  <tr>
+                    <th>District</th>
+                    <th>Division</th>
+                    <th>Disease</th>
+                    <th>Epi Week</th>
+                    <th>Cases</th>
+                    <th>Baseline</th>
+                    <th>Z-Score</th>
+                  </tr>
+                </thead>
+                <tbody id="alerts-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  const state = {
+    view: 'overview',
+    disease: 'Diarrhoea',
+    district: 'ALL', // Stores 'ALL' or district_id (e.g., 'D01', 'D14')
+    mapMetric: 'cases_num',
+    threshold: 2.5,
+    budget: 5000000,
+    alpha: 0.3,
+    alertSearch: ''
+  };
+
+  let martData = null;
+  let geoData = null;
+
+  // Built-in fallbacks from your conflict_c1_roc.json and conflict_c3_equity.json so file:// protocol works without CORS errors
+  const DEFAULT_C1_DATA = [
+    {"threshold":1.5,"sensitivity":0.933,"false_alerts_per_district_year":60.87,"median_days_to_detect":3},
+    {"threshold":2.0,"sensitivity":0.933,"false_alerts_per_district_year":46.69,"median_days_to_detect":5},
+    {"threshold":2.5,"sensitivity":0.9,"false_alerts_per_district_year":34.06,"median_days_to_detect":6},
+    {"threshold":3.0,"sensitivity":0.9,"false_alerts_per_district_year":23.79,"median_days_to_detect":7},
+    {"threshold":3.5,"sensitivity":0.9,"false_alerts_per_district_year":16.73,"median_days_to_detect":8},
+    {"threshold":4.0,"sensitivity":0.9,"false_alerts_per_district_year":11.84,"median_days_to_detect":10}
+  ];
+
+  const DEFAULT_C3_DATA = [
+    {"budget": 1000000, "alpha": 0.0, "total_unmet_demand": 3041.6},
+    {"budget": 1000000, "alpha": 0.3, "total_unmet_demand": 3041.4},
+    {"budget": 1000000, "alpha": 0.6, "total_unmet_demand": 3041.5},
+    {"budget": 1000000, "alpha": 0.95, "total_unmet_demand": 3255.1},
+    {"budget": 2500000, "alpha": 0.0, "total_unmet_demand": 0.0},
+    {"budget": 2500000, "alpha": 0.3, "total_unmet_demand": 0.0},
+    {"budget": 2500000, "alpha": 0.6, "total_unmet_demand": 0.0},
+    {"budget": 2500000, "alpha": 0.95, "total_unmet_demand": 0.0},
+    {"budget": 5000000, "alpha": 0.0, "total_unmet_demand": 0.0},
+    {"budget": 5000000, "alpha": 0.3, "total_unmet_demand": 0.0},
+    {"budget": 5000000, "alpha": 0.6, "total_unmet_demand": 0.0},
+    {"budget": 5000000, "alpha": 0.95, "total_unmet_demand": 0.0},
+    {"budget": 7500000, "alpha": 0.0, "total_unmet_demand": 0.0},
+    {"budget": 7500000, "alpha": 0.3, "total_unmet_demand": 0.0},
+    {"budget": 7500000, "alpha": 0.6, "total_unmet_demand": 0.0},
+    {"budget": 7500000, "alpha": 0.95, "total_unmet_demand": 0.0},
+    {"budget": 10000000, "alpha": 0.0, "total_unmet_demand": 0.0},
+    {"budget": 10000000, "alpha": 0.3, "total_unmet_demand": 0.0},
+    {"budget": 10000000, "alpha": 0.6, "total_unmet_demand": 0.0},
+    {"budget": 10000000, "alpha": 0.95, "total_unmet_demand": 0.0}
+  ];
+
+  let c1Data = DEFAULT_C1_DATA;
+  let c3Data = DEFAULT_C3_DATA;
+
+  const distNameMap = new Map();
+  const DEFAULT_NAMES = {
+    D01:"Dhaka", D02:"Faridpur", D03:"Gazipur", D04:"Gopalganj", D05:"Kishoreganj", D06:"Madaripur", D07:"Manikganj", D08:"Munshiganj", D09:"Narayanganj", D10:"Narsingdi", D11:"Rajbari", D12:"Shariatpur", D13:"Tangail",
+    D14:"Chittagong", D15:"Bandarban", D16:"Brahmanbaria", D17:"Chandpur", D18:"Comilla", D19:"Cox's Bazar", D20:"Feni", D21:"Khagrachhari", D22:"Lakshmipur", D23:"Noakhali", D24:"Rangamati",
+    D25:"Rajshahi", D26:"Bogura", D27:"Chapainawabganj", D28:"Joypurhat", D29:"Naogaon", D30:"Natore", D31:"Pabna", D32:"Sirajganj",
+    D33:"Khulna", D34:"Bagerhat", D35:"Chuadanga", D36:"Jessore", D37:"Jhenaidah", D38:"Kushtia", D39:"Magura", D40:"Meherpur", D41:"Narail", D42:"Satkhira",
+    D43:"Barisal", D44:"Barguna", D45:"Bhola", D46:"Jhalokati", D47:"Patuakhali", D48:"Pirojpur",
+    D49:"Sylhet", D50:"Habiganj", D51:"Moulvibazar", D52:"Sunamganj",
+    D53:"Rangpur", D54:"Dinajpur", D55:"Gaibandha", D56:"Kurigram", D57:"Lalmonirhat", D58:"Nilphamari", D59:"Panchagarh", D60:"Thakurgaon",
+    D61:"Mymensingh", D62:"Jamalpur", D63:"Netrokona", D64:"Sherpur"
+  };
+  Object.entries(DEFAULT_NAMES).forEach(([k, v]) => distNameMap.set(k, v));
+
+  function displayDistName(idOrName) {
+    if (!idOrName || idOrName === 'ALL') return 'All 64 Districts (National)';
+    return distNameMap.get(String(idOrName)) || String(idOrName);
+  }
+
+  function matchDistrict(row, selectedDist) {
+    if (selectedDist === 'ALL') return true;
+    return String(row.district_id) === String(selectedDist) ||
+           String(row.district_name).toLowerCase() === String(selectedDist).toLowerCase() ||
+           String(row.district).toLowerCase() === String(selectedDist).toLowerCase();
+  }
+
+  const tooltip = document.getElementById('tooltip');
+
+  function showTooltip(html, evt) {
+    tooltip.innerHTML = html;
+    tooltip.style.opacity = '1';
+    const x = Math.min(window.innerWidth - 270, evt.clientX + 14);
+    const y = Math.min(window.innerHeight - 140, evt.clientY + 14);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  }
+
+  function hideTooltip() {
+    tooltip.style.opacity = '0';
+  }
+
+  function fmtInt(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Math.round(Number(n)).toLocaleString('en-US');
+  }
+
+  function fmtDec(n, d = 1) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Number(n).toFixed(d);
+  }
+
+  // Collapsible Rail Persistence
+  const rail = document.getElementById('floating-rail');
+  const railToggle = document.getElementById('rail-toggle');
+  if (localStorage.getItem('episcope_rail_collapsed') === '1') {
+    rail.classList.add('collapsed');
+  }
+  railToggle.addEventListener('click', () => {
+    rail.classList.toggle('collapsed');
+    localStorage.setItem('episcope_rail_collapsed', rail.classList.contains('collapsed') ? '1' : '0');
+    setTimeout(renderAll, 240);
+  });
+
+  // Helper to get latest_map rows for active disease (supports both flat array and keyed object)
+  function getLatestMapRows() {
+    if (!martData || !martData.latest_map) return [];
+    if (Array.isArray(martData.latest_map)) {
+      return martData.latest_map.filter(r => r.disease === state.disease);
+    }
+    return martData.latest_map[state.disease] || [];
+  }
+
+  // Helper to compute bounding box for planar GeoJSON projection (avoids D3 winding bug)
+  function computeGeoBounds(fc) {
+    let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    function scan(coords) {
+      if (!Array.isArray(coords) || !coords.length) return;
+      if (typeof coords[0] === 'number') {
+        const lon = coords[0], lat = coords[1];
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      } else {
+        coords.forEach(scan);
+      }
+    }
+    (fc.features || []).forEach(f => {
+      if (f.geometry && f.geometry.coordinates) scan(f.geometry.coordinates);
+    });
+    return { minLon, maxLon, minLat, maxLat };
+  }
+
+  // Load Data from window.__EPISCOPE_MART__ / __EPISCOPE_GEO__ or JSON fallbacks
+  async function loadAllData() {
+    if (window.__EPISCOPE_MART__) martData = window.__EPISCOPE_MART__;
+    if (window.__EPISCOPE_GEO__) geoData = window.__EPISCOPE_GEO__;
+
+    if (window.EPISCOPE_BUNDLE) {
+      martData = martData || window.EPISCOPE_BUNDLE.mart || window.EPISCOPE_BUNDLE.dashboard_mart;
+      c1Data = window.EPISCOPE_BUNDLE.c1 || window.EPISCOPE_BUNDLE.conflict_c1_roc || c1Data;
+      c3Data = window.EPISCOPE_BUNDLE.c3 || window.EPISCOPE_BUNDLE.conflict_c3_equity || c3Data;
+      geoData = geoData || window.EPISCOPE_BUNDLE.geo || window.EPISCOPE_BUNDLE.topo;
+    }
+
+    async function tryFetch(urls) {
+      for (const u of urls) {
+        try {
+          const r = await fetch(u);
+          if (r.ok) return await r.json();
+        } catch (e) {}
+      }
+      return null;
+    }
+
+    if (!martData) martData = await tryFetch(['./dashboard_mart.json', './data/dashboard_mart.json', './dashboard_mart_2.json']);
+    if (!geoData) geoData = await tryFetch(['./districts.geojson', './data/districts.geojson', './bgd_districts_topo.json']);
+
+    const fetchedC1 = await tryFetch(['./conflict_c1_roc.json', './data/conflict_c1_roc.json', './conflict_c1_roc_2.json']);
+    if (fetchedC1) c1Data = fetchedC1;
+
+    const fetchedC3 = await tryFetch(['./conflict_c3_equity.json', './data/conflict_c3_equity.json', './conflict_c3_equity_2.json']);
+    if (fetchedC3) c3Data = fetchedC3;
+
+    if (geoData && geoData.features) {
+      geoData.features.forEach(f => {
+        const p = f.properties || {};
+        if (p.district_id && p.district_name) {
+          distNameMap.set(String(p.district_id), DEFAULT_NAMES[p.district_id] || String(p.district_name));
+        }
+      });
+    }
+
+    initControls();
+    renderAll();
+  }
+
+  function initControls() {
+    if (!martData) return;
+
+    // Extract unique diseases from flat array or object
+    let diseases = [];
+    if (Array.isArray(martData.diseases)) {
+      diseases = martData.diseases;
+    } else if (Array.isArray(martData.latest_map)) {
+      diseases = Array.from(new Set(martData.latest_map.map(r => r.disease).filter(Boolean)));
+    } else if (martData.latest_map) {
+      diseases = Object.keys(martData.latest_map);
+    }
+    if (!diseases.length) diseases = ['Diarrhoea', 'Dengue', 'Influenza', 'Malaria'];
+    state.disease = diseases[0];
+
+    const disSel = document.getElementById('disease-select');
+    disSel.innerHTML = diseases.map(d => `<option value="${d}">${d}</option>`).join('');
+    disSel.value = state.disease;
+    disSel.addEventListener('change', e => {
+      state.disease = e.target.value;
+      renderAll();
+    });
+
+    populateDistrictSelect();
+
+    document.getElementById('district-select').addEventListener('change', e => {
+      state.district = e.target.value;
+      renderAll();
+    });
+
+    document.getElementById('reset-district-btn').addEventListener('click', () => {
+      state.district = 'ALL';
+      document.getElementById('district-select').value = 'ALL';
+      renderAll();
+    });
+
+    // Navigation buttons
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchView(btn.dataset.view);
+      });
+    });
+
+    document.getElementById('jump-to-alerts-btn').addEventListener('click', () => {
+      switchView('alerts');
+    });
+
+    // Map Metric Switcher
+    document.querySelectorAll('#map-metric-toggle .seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#map-metric-toggle .seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.mapMetric = btn.dataset.metric;
+        renderMapAndRanking();
+      });
+    });
+
+    // C1 Threshold Slider
+    const c1Slider = document.getElementById('c1-thresh-slider');
+    c1Slider.addEventListener('input', e => {
+      state.threshold = parseFloat(e.target.value);
+      document.getElementById('c1-thresh-label').textContent = `Z ≥ ${state.threshold.toFixed(1)}σ`;
+      document.getElementById('kpi-thresh-tag').textContent = `Z ≥ ${state.threshold.toFixed(1)}σ`;
+      document.getElementById('ov-thresh-readout').textContent = `${state.threshold.toFixed(1)}σ`;
+      renderKPIs();
+      renderAlertsAndC1();
+    });
+
+    // C3 Budget & Alpha Controls
+    const c3Slider = document.getElementById('c3-budget-slider');
+    c3Slider.addEventListener('input', e => {
+      state.budget = parseInt(e.target.value, 10);
+      document.getElementById('c3-budget-label').textContent = `${(state.budget / 1e6).toFixed(1)}M BDT`;
+      renderSuppliesAndC3();
+    });
+
+    document.querySelectorAll('#c3-alpha-group .seg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#c3-alpha-group .seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.alpha = parseFloat(btn.dataset.alpha);
+        renderSuppliesAndC3();
+      });
+    });
+
+    // Alert Search
+    document.getElementById('alert-search').addEventListener('input', e => {
+      state.alertSearch = e.target.value.trim().toLowerCase();
+      renderAlertsAndC1();
+    });
+  }
+
+  function populateDistrictSelect() {
+    const distSel = document.getElementById('district-select');
+    const sortedDists = Array.from(distNameMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    distSel.innerHTML = `<option value="ALL">All 64 Districts (National)</option>` +
+      sortedDists.map(d => `<option value="${d.id}">${d.name} (${d.id})</option>`).join('');
+    distSel.value = state.district;
+  }
+
+  function switchView(viewName) {
+    state.view = viewName;
+    document.querySelectorAll('.nav-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === viewName);
+    });
+    document.querySelectorAll('.stage-panel').forEach(p => {
+      p.classList.toggle('active', p.id === `panel-${viewName}`);
+    });
+
+    const titles = {
+      overview: ['National Epidemiological Overview', 'Real-time 64-district caseloads, 80% Spark forecast & anomaly watchlist'],
+      trends: ['Seasonal Preparedness & 52-Week Matrix', 'Division-level historical intensity & multi-year epidemic trajectories'],
+      supplies: ['Resource Allocation & Conflict C3 Equity Simulator', 'PuLP linear optimization across budget constraints & equity floors (α)'],
+      alerts: ['Early Warning Signals & Conflict C1 ROC Simulator', 'Dynamic Z-score outbreak detection vs. false-positive trade-off curve']
+    };
+    if (titles[viewName]) {
+      document.getElementById('topbar-title').textContent = titles[viewName][0];
+      document.getElementById('topbar-subtitle').textContent = titles[viewName][1];
+    }
+    renderAll();
+  }
+
+  // Returns alerts for selected disease & district across time-series
+  function getActiveAlerts(latestWeekOnly = false) {
+    if (!martData) return [];
+    const source = latestWeekOnly
+      ? getLatestMapRows()
+      : (Array.isArray(martData.timeseries)
+          ? martData.timeseries.filter(r => r.disease === state.disease)
+          : getLatestMapRows());
+
+    return source.filter(r => {
+      const z = Number(r.z_score ?? 0);
+      return z >= state.threshold && matchDistrict(r, state.district);
+    }).sort((a, b) => {
+      const wkDiff = ((b.epi_year || 0) * 53 + (b.epi_week || 0)) - ((a.epi_year || 0) * 53 + (a.epi_week || 0));
+      return wkDiff !== 0 ? wkDiff : (Number(b.z_score || 0) - Number(a.z_score || 0));
+    });
+  }
+
+  function renderKPIs() {
+    if (!martData) return;
+    const mapRows = getLatestMapRows();
+    const filteredMap = state.district === 'ALL' ? mapRows : mapRows.filter(r => matchDistrict(r, state.district));
+
+    const totalCases = d3.sum(filteredMap, d => Number(d.cases_num ?? d.cases ?? 0));
+    const allAlerts = getActiveAlerts(false);
+    const latestAlerts = getActiveAlerts(true);
+
+    // Next week's forecast (horizon_week === 1)
+    let nextFc = 0;
+    if (Array.isArray(martData.forecasts)) {
+      const fcRows = martData.forecasts.filter(r =>
+        r.disease === state.disease &&
+        Number(r.horizon_week) === 1 &&
+        matchDistrict(r, state.district)
+      );
+      nextFc = d3.sum(fcRows, d => Number(d.forecast_cases ?? 0));
+    }
+
+    // Supplies (allocations array)
+    const supRows = Array.isArray(martData.allocations) ? martData.allocations : [];
+    const filtSup = state.district === 'ALL' ? supRows : supRows.filter(r => matchDistrict(r, state.district));
+    const totNeed = d3.sum(filtSup, d => Math.max(0, Number(d.demand || 0) - Number(d.stock || 0))) || d3.sum(filtSup, d => Number(d.allocated || 0));
+    const totAlloc = d3.sum(filtSup, d => Number(d.allocated || 0));
+    const covPct = totNeed > 0 ? (totAlloc / totNeed) * 100 : 100;
+
+    if (martData.latest_year && martData.latest_week) {
+      document.getElementById('kpi-week-tag').textContent = `W${martData.latest_week} · ${martData.latest_year}`;
+    }
+
+    const scopeLabel = state.district === 'ALL' ? 'Across 64 reporting districts' : `Reported in ${displayDistName(state.district)}`;
+    document.getElementById('kpi-cases').textContent = fmtInt(totalCases);
+    document.getElementById('kpi-cases-sub').textContent = scopeLabel;
+
+    document.getElementById('kpi-alerts').textContent = fmtInt(allAlerts.length);
+    document.getElementById('kpi-alerts-sub').textContent = `${latestAlerts.length} active in W${martData.latest_week || 52} · ${fmtInt(allAlerts.length)} total`;
+    document.getElementById('nav-alert-badge').textContent = allAlerts.length;
+
+    document.getElementById('kpi-forecast').textContent = fmtInt(nextFc);
+    document.getElementById('kpi-supplies').textContent = fmtInt(totAlloc);
+    document.getElementById('kpi-supplies-sub').textContent = `${fmtDec(covPct, 1)}% of ${fmtInt(totNeed)} net needed units`;
+
+    const totalReports = Array.isArray(martData.timeseries) ? martData.timeseries.length : mapRows.length;
+    document.getElementById('status-text').textContent =
+      `Live · ${fmtInt(totalReports)} reports · ${fmtInt(allAlerts.length)} alerts`;
+  }
+
+  function renderMapAndRanking() {
+    if (!martData) return;
+    const rows = getLatestMapRows();
+    const metric = state.mapMetric;
+
+    document.getElementById('map-scope-badge').textContent =
+      state.district === 'ALL' ? 'Scope: National (64 Districts)' : `Scope: ${displayDistName(state.district)} (${state.district})`;
+
+    const vals = rows.map(r => Number(r[metric] || 0));
+    const maxVal = d3.max(vals) || 1;
+    const minVal = d3.min(vals) || 0;
+
+    document.getElementById('legend-min').textContent = metric === 'z_score' ? `${fmtDec(minVal, 1)}σ` : fmtInt(minVal);
+    document.getElementById('legend-max').textContent = metric === 'z_score' ? `${fmtDec(maxVal, 1)}σ` : fmtInt(maxVal);
+
+    const colorScale = d3.scaleSequential()
+      .domain([minVal, maxVal])
+      .interpolator(d3.interpolateRgbBasis(['#EEF2FF', '#818CF8', '#4F46E5', '#E11D48']));
+
+    const svg = d3.select('#map-svg');
+    svg.selectAll('*').remove();
+
+    const box = document.getElementById('map-svg').getBoundingClientRect();
+    const width = box.width || 420;
+    const height = box.height || 420;
+    const pad = 18;
+
+    const byDistId = new Map(rows.map(r => [String(r.district_id), r]));
+    const byDistName = new Map(rows.map(r => [String(r.district_name || r.district || '').toLowerCase(), r]));
+
+    if (geoData && geoData.features && geoData.features.length) {
+      // Planar bounding-box projection — immune to spherical clockwise/CCW winding inversion
+      const b = computeGeoBounds(geoData);
+      const cosLat = Math.cos(((b.minLat + b.maxLat) / 2) * Math.PI / 180);
+      const geoW = (b.maxLon - b.minLon) * cosLat;
+      const geoH = (b.maxLat - b.minLat);
+      const scale = Math.min((width - 2 * pad) / geoW, (height - 2 * pad) / geoH);
+      const offX = (width - geoW * scale) / 2;
+      const offY = (height - geoH * scale) / 2;
+
+      const planarProjection = d3.geoTransform({
+        point: function (lon, lat) {
+          const x = offX + (lon - b.minLon) * cosLat * scale;
+          const y = height - (offY + (lat - b.minLat) * scale);
+          this.stream.point(x, y);
+        }
+      });
+      const path = d3.geoPath().projection(planarProjection);
+
+      const sortedFeatures = [...geoData.features].sort((a, b) => {
+        const aSel = String(a.properties.district_id) === String(state.district) ? 1 : 0;
+        const bSel = String(b.properties.district_id) === String(state.district) ? 1 : 0;
+        return aSel - bSel;
+      });
+
+      svg.append('g')
+        .selectAll('path')
+        .data(sortedFeatures)
+        .join('path')
+        .attr('d', path)
+        .attr('fill', f => {
+          const p = f.properties || {};
+          const rec = byDistId.get(String(p.district_id)) || byDistName.get(String(p.district_name || '').toLowerCase());
+          return rec ? colorScale(Number(rec[metric] || 0)) : '#E2E8F0';
+        })
+        // 1. Default state: Bold black outline if clicked, light charcoal outline (#64748B) otherwise
+        .attr('stroke', f => {
+          const p = f.properties || {};
+          return String(p.district_id) === String(state.district) ? '#0F172A' : '#64748B';
+        })
+        .attr('stroke-width', f => {
+          const p = f.properties || {};
+          return String(p.district_id) === String(state.district) ? 2.4 : 0.65;
+        })
+        .attr('stroke-opacity', f => {
+          const p = f.properties || {};
+          return String(p.district_id) === String(state.district) ? 1.0 : 0.55;
+        })
+        .style('cursor', 'pointer')
+        // 2. Hover state: Darker & slightly thicker outline, brought to front
+        .on('mouseenter', function (evt, f) {
+          const p = f.properties || {};
+          const isSelected = String(p.district_id) === String(state.district);
+          d3.select(this)
+            .raise()
+            .attr('stroke', isSelected ? '#0F172A' : '#1E293B')
+            .attr('stroke-width', isSelected ? 2.6 : 1.5)
+            .attr('stroke-opacity', 1.0);
+        })
+        .on('mousemove', (evt, f) => {
+          const p = f.properties || {};
+          const id = String(p.district_id || '');
+          const name = displayDistName(id || p.district_name);
+          const rec = byDistId.get(id) || byDistName.get(String(p.district_name || '').toLowerCase()) || {};
+          showTooltip(`
+            <div style="font-weight:700; font-size:13px; margin-bottom:4px;">${name} (${id})</div>
+            <div>Division: <strong>${rec.division || p.division || '—'}</strong></div>
+            <div>Cases (W${martData.latest_week || 52}): <strong>${fmtInt(rec.cases_num)}</strong></div>
+            <div>Incidence/100k: <strong>${fmtDec(rec.incidence_per_100k, 2)}</strong></div>
+            <div>Z-Score: <strong>${fmtDec(rec.z_score, 2)}σ</strong></div>
+          `, evt);
+        })
+        // 3. Mouse leave: Restore to lighter border (or keep bold black if clicked)
+        .on('mouseleave', function (evt, f) {
+          hideTooltip();
+          const p = f.properties || {};
+          const isSelected = String(p.district_id) === String(state.district);
+          d3.select(this)
+            .attr('stroke', isSelected ? '#0F172A' : '#64748B')
+            .attr('stroke-width', isSelected ? 2.4 : 0.65)
+            .attr('stroke-opacity', isSelected ? 1.0 : 0.55);
+
+          // Keep the clicked district on top of neighboring borders
+          if (!isSelected) {
+            svg.selectAll('path')
+              .filter(d => String((d.properties || {}).district_id) === String(state.district))
+              .raise();
+          }
+        })
+        .on('click', (evt, f) => {
+          const id = String(f.properties.district_id || '');
+          if (!id) return;
+          state.district = state.district === id ? 'ALL' : id;
+          document.getElementById('district-select').value = state.district;
+          renderAll();
+        });
+    }
+
+    // Top 6 Severity Ranking List
+    const top6 = [...rows]
+      .sort((a, b) => Number(b[metric] || 0) - Number(a[metric] || 0))
+      .slice(0, 6);
+
+    const container = document.getElementById('most-cases-container');
+    container.innerHTML = top6.map((r, idx) => {
+      const val = Number(r[metric] || 0);
+      const pct = Math.min(100, Math.max(8, (val / maxVal) * 100));
+      const formatted = metric === 'z_score'
+        ? `${fmtDec(val, 2)}σ`
+        : metric === 'incidence_per_100k'
+          ? fmtDec(val, 1)
+          : fmtInt(val);
+      const isSel = String(state.district) === String(r.district_id) ? 'selected' : '';
+      const dName = displayDistName(r.district_id || r.district_name);
+      return `
+        <div class="rank-item ${isSel}" data-dist="${r.district_id}">
+          <span class="rank-idx">0${idx + 1}</span>
+          <span class="rank-name">${dName}</span>
+          <div class="rank-bar-track">
+            <div class="rank-bar-fill" style="width:${pct}%;"></div>
+          </div>
+          <span class="rank-val">${formatted}</span>
+        </div>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.rank-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const d = el.dataset.dist;
+        state.district = state.district === d ? 'ALL' : d;
+        document.getElementById('district-select').value = state.district;
+        renderAll();
+      });
+    });
+  }
+
+  function renderTimeSeries(svgSelector) {
+    if (!martData) return;
+    const svgEl = document.querySelector(svgSelector);
+    if (!svgEl) return;
+    const svg = d3.select(svgSelector);
+    svg.selectAll('*').remove();
+
+    // 1. Aggregate last 52 historical weeks from flat martData.timeseries
+    const rawHist = (martData.timeseries || []).filter(d =>
+      d.disease === state.disease && matchDistrict(d, state.district)
+    );
+
+    const groupedHist = d3.rollups(
+      rawHist,
+      v => ({
+        cases_num: d3.sum(v, d => Number(d.cases_num ?? d.cases ?? 0)),
+        epi_year: v[0].epi_year,
+        epi_week: v[0].epi_week
+      }),
+      d => d.epi_year * 53 + d.epi_week
+    ).sort((a, b) => a[0] - b[0]).slice(-52);
+
+    const histPoints = groupedHist.map(([, obj], idx) => ({
+      idx,
+      year_week: `${obj.epi_year}-W${String(obj.epi_week).padStart(2, '0')}`,
+      cases_num: obj.cases_num,
+      is_forecast: false
+    }));
+
+    // 2. Aggregate 4-week forecast horizon from martData.forecasts
+    const rawFc = (martData.forecasts || []).filter(d =>
+      d.disease === state.disease && matchDistrict(d, state.district)
+    );
+
+    const groupedFc = d3.rollups(
+      rawFc,
+      v => ({
+        forecast_cases: d3.sum(v, d => Number(d.forecast_cases ?? 0)),
+        pi_low_80: d3.sum(v, d => Number(d.pi_low_80 ?? 0)),
+        pi_high_80: d3.sum(v, d => Number(d.pi_high_80 ?? 0))
+      }),
+      d => Number(d.horizon_week)
+    ).sort((a, b) => a[0] - b[0]);
+
+    const fcPoints = groupedFc.map(([hw, obj], i) => ({
+      idx: histPoints.length + i,
+      year_week: `Forecast +${hw}W`,
+      cases_num: obj.forecast_cases,
+      pi_low_80: obj.pi_low_80,
+      pi_high_80: obj.pi_high_80,
+      is_forecast: true
+    }));
+
+    const data = [...histPoints, ...fcPoints];
+    if (!data.length) return;
+
+    const width = svgEl.getBoundingClientRect().width || 640;
+    const height = Number(svgEl.getAttribute('height')) || 300;
+    const margin = { top: 18, right: 22, bottom: 30, left: 52 };
+    const innerW = width - margin.left - margin.right;
+    const innerH = height - margin.top - margin.bottom;
+
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleLinear()
+      .domain([0, Math.max(1, data.length - 1)])
+      .range([0, innerW]);
+
+    const maxY = d3.max(data, d => Math.max(Number(d.cases_num || 0), Number(d.pi_high_80 || 0))) || 10;
+    const y = d3.scaleLinear()
+      .domain([0, maxY * 1.1])
+      .nice()
+      .range([innerH, 0]);
+
+    // Subtle Swiss Gridlines
+    g.append('g')
+      .call(d3.axisLeft(y).ticks(5).tickSize(-innerW).tickFormat(''))
+      .call(g => g.select('.domain').remove())
+      .call(g => g.selectAll('line').attr('stroke', '#E2E8F0').attr('stroke-dasharray', '3,3'));
+
+    g.append('g')
+      .attr('transform', `translate(0,${innerH})`)
+      .call(
+        d3.axisBottom(x)
+          .ticks(8)
+          .tickFormat(i => {
+            const row = data[Math.round(i)];
+            return row ? row.year_week : '';
+          })
+      )
+      .call(g => g.select('.domain').attr('stroke', '#CBD5E1'))
+      .call(g => g.selectAll('text').attr('fill', '#64748B').style('font-family', 'JetBrains Mono').style('font-size', '10px'));
+
+    g.append('g')
+      .call(d3.axisLeft(y).ticks(5))
+      .call(g => g.select('.domain').remove())
+      .call(g => g.selectAll('text').attr('fill', '#64748B').style('font-family', 'JetBrains Mono').style('font-size', '10px'));
+
+    // Historical area & line
+    const areaHist = d3.area()
+      .x(d => x(d.idx))
+      .y0(innerH)
+      .y1(d => y(Number(d.cases_num || 0)))
+      .curve(d3.curveMonotoneX);
+
+    const lineHist = d3.line()
+      .x(d => x(d.idx))
+      .y(d => y(Number(d.cases_num || 0)))
+      .curve(d3.curveMonotoneX);
+
+    g.append('path')
+      .datum(histPoints)
+      .attr('fill', 'rgba(79, 70, 229, 0.09)')
+      .attr('d', areaHist);
+
+    g.append('path')
+      .datum(histPoints)
+      .attr('fill', 'none')
+      .attr('stroke', '#4F46E5')
+      .attr('stroke-width', 2.2)
+      .attr('d', lineHist);
+
+    // Forecast 80% PI band & dashed line
+    if (fcPoints.length) {
+      const connectedFc = histPoints.length ? [histPoints[histPoints.length - 1], ...fcPoints] : fcPoints;
+      const lineFc = d3.line()
+        .x(d => x(d.idx))
+        .y(d => y(Number(d.cases_num || 0)))
+        .curve(d3.curveMonotoneX);
+
+      g.append('path')
+        .datum(connectedFc)
+        .attr('fill', 'none')
+        .attr('stroke', '#D97706')
+        .attr('stroke-width', 2.2)
+        .attr('stroke-dasharray', '5,4')
+        .attr('d', lineFc);
+
+      fcPoints.forEach(d => {
+        g.append('line')
+          .attr('x1', x(d.idx))
+          .attr('x2', x(d.idx))
+          .attr('y1', y(Number(d.pi_low_80)))
+          .attr('y2', y(Number(d.pi_high_80)))
+          .attr('stroke', '#D97706')
+          .attr('stroke-width', 5)
+          .attr('stroke-opacity', 0.28)
+          .attr('stroke-linecap', 'round');
+      });
+    }
+
+    // Interactive points
+    g.selectAll('.ts-dot')
+      .data(data)
+      .join('circle')
+      .attr('class', 'ts-dot')
+      .attr('cx', d => x(d.idx))
+      .attr('cy', d => y(Number(d.cases_num || 0)))
+      .attr('r', d => d.is_forecast ? 4.2 : 2.8)
+      .attr('fill', d => d.is_forecast ? '#D97706' : '#4F46E5')
+      .style('cursor', 'pointer')
+      .on('mousemove', (evt, d) => {
+        const pi = d.is_forecast
+          ? `<div>80% PI: <strong>${fmtInt(d.pi_low_80)} – ${fmtInt(d.pi_high_80)}</strong></div>`
+          : '';
+        showTooltip(`
+          <div style="font-weight:700;">${d.year_week}</div>
+          <div>${d.is_forecast ? 'Forecast' : 'Reported'} Cases: <strong>${fmtInt(d.cases_num)}</strong></div>
+          ${pi}
+        `, evt);
+      })
+      .on('mouseleave', hideTooltip);
+  }
+
+  function renderSeasonalityCalendar() {
+    if (!martData) return;
+    const svgEl = document.getElementById('cal-svg');
+    if (!svgEl) return;
+    const svg = d3.select('#cal-svg');
+    svg.selectAll('*').remove();
+
+    const calRows = Array.isArray(martData.calendar)
+      ? martData.calendar.filter(d => d.disease === state.disease)
+      : ((martData.calendar && martData.calendar[state.disease]) || []);
+    if (!calRows.length) return;
+
+    const width = svgEl.getBoundingClientRect().width || 640;
+    const height = Number(svgEl.getAttribute('height')) || 300;
+    const margin = { top: 20, right: 16, bottom: 28, left: 96 };
+    const innerW = width - margin.left - margin.right;
+    const innerH = height - margin.top - margin.bottom;
+
+    const divisions = Array.from(new Set(calRows.map(d => d.division))).sort();
+    const weeks = d3.range(1, 53);
+
+    const x = d3.scaleBand().domain(weeks).range([0, innerW]).padding(0.08);
+    const y = d3.scaleBand().domain(divisions).range([0, innerH]).padding(0.12);
+    const maxVal = d3.max(calRows, d => Number(d.seasonal_incidence ?? d.cases_num ?? d.value ?? 0)) || 1;
+
+    const color = d3.scaleSequential()
+      .domain([0, maxVal])
+      .interpolator(d3.interpolateRgbBasis(['#F8FAFC', '#C7D2FE', '#4F46E5', '#E11D48']));
+
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    g.append('g')
+      .call(d3.axisLeft(y).tickSize(0))
+      .call(g => g.select('.domain').remove())
+      .call(g => g.selectAll('text').attr('fill', '#0F172A').style('font-weight', '600').style('font-size', '11.5px'));
+
+    g.append('g')
+      .attr('transform', `translate(0,${innerH})`)
+      .call(d3.axisBottom(x).tickValues([1, 8, 16, 24, 32, 40, 48, 52]).tickFormat(w => `W${w}`))
+      .call(g => g.select('.domain').remove())
+      .call(g => g.selectAll('text').attr('fill', '#64748B').style('font-family', 'JetBrains Mono').style('font-size', '10px'));
+
+    g.selectAll('rect')
+      .data(calRows)
+      .join('rect')
+      .attr('x', d => x(Number(d.epi_week || d.week || 1)))
+      .attr('y', d => y(d.division))
+      .attr('width', x.bandwidth())
+      .attr('height', y.bandwidth())
+      .attr('rx', 2)
+      .attr('fill', d => color(Number(d.seasonal_incidence ?? d.cases_num ?? d.value ?? 0)))
+      .on('mousemove', (evt, d) => {
+        const val = Number(d.seasonal_incidence ?? d.cases_num ?? d.value ?? 0);
+        showTooltip(`
+          <div style="font-weight:700;">${d.division} · Epi-Week ${d.epi_week || d.week}</div>
+          <div>Seasonal Incidence/100k: <strong>${fmtDec(val, 2)}</strong></div>
+        `, evt);
+      })
+      .on('mouseleave', hideTooltip);
+  }
+
+  function renderSuppliesAndC3() {
+    if (!martData) return;
+
+    // 1. Supply Fulfillment Metrics from martData.allocations
+    const rows = Array.isArray(martData.allocations) ? martData.allocations : [];
+    const filt = state.district === 'ALL' ? rows : rows.filter(r => matchDistrict(r, state.district));
+
+    const needed = d3.sum(filt, d => Math.max(0, Number(d.demand || 0) - Number(d.stock || 0))) || d3.sum(filt, d => Number(d.allocated || 0));
+    const alloc = d3.sum(filt, d => Number(d.allocated || 0));
+    const gap = Math.max(0, needed - alloc);
+    const cov = needed > 0 ? (alloc / needed) * 100 : 100;
+
+    document.getElementById('sup-needed').textContent = fmtInt(needed);
+    document.getElementById('sup-allocated').textContent = fmtInt(alloc);
+    document.getElementById('sup-gap').textContent = fmtInt(gap);
+    document.getElementById('sup-cov-pct').textContent = `${fmtDec(cov, 1)}%`;
+    document.getElementById('sup-cov-bar').style.width = `${Math.min(100, cov)}%`;
+
+    // Resource Type Grid (ORS_Packets, IV_Saline, NS1_Kits)
+    const byType = d3.rollups(
+      filt,
+      v => ({
+        need: d3.sum(v, d => Math.max(0, Number(d.demand || 0) - Number(d.stock || 0))),
+        sent: d3.sum(v, d => Number(d.allocated || 0))
+      }),
+      d => d.resource || d.resource_type || 'STANDARD_KIT'
+    );
+
+    document.getElementById('sup-type-grid').innerHTML = byType.map(([type, stats]) => {
+      const pct = stats.need > 0 ? (stats.sent / stats.need) * 100 : 100;
+      return `
+        <div class="res-item-card">
+          <div class="res-item-head">
+            <span>${String(type).replace('_', ' ')}</span>
+            <span style="color:var(--accent-indigo);">${fmtDec(pct, 0)}%</span>
+          </div>
+          <div style="font-size:11.5px; color:var(--text-secondary);">
+            Sent <strong>${fmtInt(stats.sent)}</strong> / ${fmtInt(stats.need)}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Top 10 District Horizontal Bars
+    const svgBars = d3.select('#sup-dist-bars');
+    svgBars.selectAll('*').remove();
+    const byDist = d3.rollups(
+      rows,
+      v => ({
+        need: d3.sum(v, d => Math.max(0, Number(d.demand || 0) - Number(d.stock || 0))),
+        sent: d3.sum(v, d => Number(d.allocated || 0)),
+        id: v[0].district_id
+      }),
+      d => displayDistName(d.district_id || d.district_name)
+    ).sort((a, b) => b[1].need - a[1].need).slice(0, 10);
+
+    const bBox = document.getElementById('sup-dist-bars').getBoundingClientRect();
+    const bW = bBox.width || 600;
+    const bH = 230;
+    const bM = { top: 10, right: 24, bottom: 22, left: 110 };
+    const iW = bW - bM.left - bM.right;
+    const iH = bH - bM.top - bM.bottom;
+
+    const gB = svgBars.append('g').attr('transform', `translate(${bM.left},${bM.top})`);
+    const xB = d3.scaleLinear().domain([0, d3.max(byDist, d => d[1].need) || 1]).range([0, iW]);
+    const yB = d3.scaleBand().domain(byDist.map(d => d[0])).range([0, iH]).padding(0.25);
+
+    gB.append('g')
+      .call(d3.axisLeft(yB).tickSize(0))
+      .call(g => g.select('.domain').remove())
+      .call(g => g.selectAll('text').style('font-size', '11px').style('font-weight', '600'));
+
+    gB.selectAll('.bar-need')
+      .data(byDist)
+      .join('rect')
+      .attr('x', 0)
+      .attr('y', d => yB(d[0]))
+      .attr('width', d => xB(d[1].need))
+      .attr('height', yB.bandwidth())
+      .attr('rx', 3)
+      .attr('fill', '#E2E8F0');
+
+    gB.selectAll('.bar-sent')
+      .data(byDist)
+      .join('rect')
+      .attr('x', 0)
+      .attr('y', d => yB(d[0]))
+      .attr('width', d => xB(d[1].sent))
+      .attr('height', yB.bandwidth())
+      .attr('rx', 3)
+      .attr('fill', '#4F46E5')
+      .style('cursor', 'pointer')
+      .on('mousemove', (evt, d) => {
+        showTooltip(`
+          <div style="font-weight:700;">${d[0]}</div>
+          <div>Dispatched: <strong>${fmtInt(d[1].sent)}</strong></div>
+          <div>Net Needed: <strong>${fmtInt(d[1].need)}</strong></div>
+        `, evt);
+      })
+      .on('mouseleave', hideTooltip)
+      .on('click', (evt, d) => {
+        if (d[1].id) {
+          state.district = d[1].id;
+          document.getElementById('district-select').value = state.district;
+          renderAll();
+        }
+      });
+
+    // 2. Conflict C3 Equity Simulator Curve
+    const c3Rows = Array.isArray(c3Data) ? c3Data : (c3Data.results || c3Data.grid || DEFAULT_C3_DATA);
+    if (!c3Rows.length) return;
+
+    // Find closest budget point in C3 grid
+    const alphaRows = c3Rows.filter(r => Math.abs(Number(r.alpha) - state.alpha) < 0.02);
+    const match = alphaRows.reduce((best, curr) =>
+      Math.abs(Number(curr.budget) - state.budget) < Math.abs(Number(best.budget) - state.budget) ? curr : best
+    , alphaRows[0] || c3Rows[0]);
+
+    const baseRows = c3Rows.filter(r => Math.abs(Number(r.alpha) - 0) < 0.02);
+    const baseline0 = baseRows.reduce((best, curr) =>
+      Math.abs(Number(curr.budget) - Number(match.budget)) < Math.abs(Number(best.budget) - Number(match.budget)) ? curr : best
+    , baseRows[0] || match);
+
+    const unmet = Number(match.total_unmet_demand ?? match.unmet_demand ?? 0);
+    const baseUnmet = baseline0 ? Number(baseline0.total_unmet_demand ?? baseline0.unmet_demand ?? unmet) : unmet;
+    const penaltyPct = baseUnmet > 0 ? ((unmet - baseUnmet) / baseUnmet) * 100 : 0;
+
+    document.getElementById('c3-unmet-val').textContent = fmtInt(unmet);
+    document.getElementById('c3-penalty-val').textContent = `+${fmtDec(Math.max(0, penaltyPct), 1)}%`;
+    document.getElementById('c3-regime-val').textContent =
+      state.alpha === 0 ? 'Utilitarian' : state.alpha >= 0.9 ? 'Strict Equity' : 'Balanced Floor';
+
+    const svgC3 = d3.select('#c3-svg');
+    svgC3.selectAll('*').remove();
+    const c3W = document.getElementById('c3-svg').getBoundingClientRect().width || 600;
+    const c3H = 215;
+    const m3 = { top: 16, right: 24, bottom: 28, left: 58 };
+    const w3 = c3W - m3.left - m3.right;
+    const h3 = c3H - m3.top - m3.bottom;
+
+    const g3 = svgC3.append('g').attr('transform', `translate(${m3.left},${m3.top})`);
+    const budgets = Array.from(new Set(c3Rows.map(d => Number(d.budget)))).sort((a, b) => a - b);
+    const alphas = Array.from(new Set(c3Rows.map(d => Number(d.alpha)))).sort((a, b) => a - b);
+
+    const x3 = d3.scaleLinear().domain(d3.extent(budgets)).range([0, w3]);
+    const y3 = d3.scaleLinear()
+      .domain([0, (d3.max(c3Rows, d => Number(d.total_unmet_demand ?? d.unmet_demand ?? 0)) || 100) * 1.12])
+      .range([h3, 0]);
+
+    const alphaColor = d3.scaleOrdinal()
+      .domain(alphas)
+      .range(['#64748B', '#4F46E5', '#D97706', '#E11D48']);
+
+    g3.append('g')
+      .attr('transform', `translate(0,${h3})`)
+      .call(d3.axisBottom(x3).ticks(6).tickFormat(d => `${(d / 1e6).toFixed(1)}M`))
+      .call(g => g.select('.domain').attr('stroke', '#CBD5E1'));
+
+    g3.append('g')
+      .call(d3.axisLeft(y3).ticks(5))
+      .call(g => g.select('.domain').remove());
+
+    alphas.forEach(a => {
+      const pts = c3Rows.filter(r => Math.abs(Number(r.alpha) - a) < 0.02)
+        .sort((x, y) => Number(x.budget) - Number(y.budget));
+      const line = d3.line()
+        .x(d => x3(Number(d.budget)))
+        .y(d => y3(Number(d.total_unmet_demand ?? d.unmet_demand ?? 0)));
+
+      g3.append('path')
+        .datum(pts)
+        .attr('fill', 'none')
+        .attr('stroke', alphaColor(a))
+        .attr('stroke-width', Math.abs(a - state.alpha) < 0.02 ? 3 : 1.5)
+        .attr('stroke-opacity', Math.abs(a - state.alpha) < 0.02 ? 1 : 0.45)
+        .attr('d', line);
+    });
+
+    // Highlight active point
+    g3.append('circle')
+      .attr('cx', x3(Number(match.budget)))
+      .attr('cy', y3(unmet))
+      .attr('r', 6)
+      .attr('fill', '#E11D48')
+      .attr('stroke', '#FFFFFF')
+      .attr('stroke-width', 2);
+  }
+
+  function renderAlertsAndC1() {
+    const latestAlerts = getActiveAlerts(true);
+    const allAlerts = getActiveAlerts(false);
+    const watchlistSource = latestAlerts.length ? latestAlerts : allAlerts;
+
+    // Populate Overview Mini Watchlist
+    const ovBody = document.getElementById('overview-alerts-tbody');
+    ovBody.innerHTML = watchlistSource.slice(0, 6).map(r => {
+      const z = Number(r.z_score || 0);
+      const cls = z >= 3.0 ? 'critical' : 'elevated';
+      const dName = displayDistName(r.district_id || r.district_name);
+      return `
+        <tr data-dist="${r.district_id}">
+          <td><strong>${dName}</strong></td>
+          <td>${r.division || '—'}</td>
+          <td style="font-family:var(--font-mono);">${r.epi_year ? `${r.epi_year}-W${r.epi_week}` : `W${r.epi_week || 52}`}</td>
+          <td style="font-family:var(--font-mono);">${fmtInt(r.cases_num)} / ${fmtDec(r.baseline_mean, 1)}</td>
+          <td><span class="z-pill ${cls}">${fmtDec(z, 2)}σ</span></td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px;">No districts exceed Z ≥ ${state.threshold.toFixed(1)}σ</td></tr>`;
+
+    ovBody.querySelectorAll('tr[data-dist]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        state.district = tr.dataset.dist;
+        document.getElementById('district-select').value = state.district;
+        renderAll();
+      });
+    });
+
+    // Populate Full Alerts Table (capped at top 100 for fast DOM rendering)
+    const filteredAlerts = allAlerts.filter(r => {
+      if (!state.alertSearch) return true;
+      const dName = displayDistName(r.district_id || r.district_name).toLowerCase();
+      return dName.includes(state.alertSearch) ||
+             String(r.division || '').toLowerCase().includes(state.alertSearch);
+    });
+
+    document.getElementById('alerts-table-sub').textContent =
+      `Showing top ${Math.min(100, filteredAlerts.length)} of ${fmtInt(filteredAlerts.length)} signals at Z ≥ ${state.threshold.toFixed(1)}σ`;
+
+    const tbody = document.getElementById('alerts-tbody');
+    tbody.innerHTML = filteredAlerts.slice(0, 100).map(r => {
+      const z = Number(r.z_score || 0);
+      const cls = z >= 3.0 ? 'critical' : 'elevated';
+      const dName = displayDistName(r.district_id || r.district_name);
+      return `
+        <tr data-dist="${r.district_id}">
+          <td><strong>${dName}</strong></td>
+          <td>${r.division || '—'}</td>
+          <td>${r.disease || state.disease}</td>
+          <td style="font-family:var(--font-mono);">${r.epi_year}-W${String(r.epi_week).padStart(2, '0')}</td>
+          <td style="font-family:var(--font-mono); font-weight:700;">${fmtInt(r.cases_num)}</td>
+          <td style="font-family:var(--font-mono);">${fmtDec(r.baseline_mean || 0, 1)}</td>
+          <td><span class="z-pill ${cls}">${fmtDec(z, 2)}σ</span></td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:18px;">No matching early warning signals at Z ≥ ${state.threshold.toFixed(1)}σ</td></tr>`;
+
+    tbody.querySelectorAll('tr[data-dist]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        state.district = tr.dataset.dist;
+        document.getElementById('district-select').value = state.district;
+        renderAll();
+      });
+    });
+
+    // Render Conflict C1 ROC Curve
+    const c1Rows = Array.isArray(c1Data) ? c1Data : (c1Data.roc || c1Data.thresholds || DEFAULT_C1_DATA);
+    if (!c1Rows.length) return;
+
+    const activePt = c1Rows.find(r => Math.abs(Number(r.threshold ?? r.z_threshold) - state.threshold) < 0.1) || c1Rows[0];
+    const sens = Number(activePt.sensitivity ?? activePt.tpr ?? 0) * (Number(activePt.sensitivity) <= 1 ? 100 : 1);
+    const fa = Number(activePt.false_alerts_per_district_year ?? activePt.false_alarms ?? 0);
+    const delay = Number(activePt.median_days_to_detect ?? activePt.detection_delay_days ?? 0);
+
+    document.getElementById('c1-sens-val').textContent = `${fmtDec(sens, 1)}%`;
+    document.getElementById('c1-fa-val').textContent = fmtDec(fa, 2);
+    document.getElementById('c1-delay-val').textContent = `${fmtDec(delay, 1)} d`;
+
+    const svgC1 = d3.select('#c1-svg');
+    svgC1.selectAll('*').remove();
+    const w1 = document.getElementById('c1-svg').getBoundingClientRect().width || 600;
+    const h1 = 205;
+    const m1 = { top: 18, right: 28, bottom: 32, left: 48 };
+    const iw = w1 - m1.left - m1.right;
+    const ih = h1 - m1.top - m1.bottom;
+
+    const g1 = svgC1.append('g').attr('transform', `translate(${m1.left},${m1.top})`);
+
+    const x1 = d3.scaleLinear()
+      .domain([0, d3.max(c1Rows, d => Number(d.false_alerts_per_district_year ?? 0)) * 1.1 || 10])
+      .range([0, iw]);
+
+    const y1 = d3.scaleLinear().domain([80, 100]).range([ih, 0]);
+
+    g1.append('g')
+      .attr('transform', `translate(0,${ih})`)
+      .call(d3.axisBottom(x1).ticks(6))
+      .call(g => g.select('.domain').attr('stroke', '#CBD5E1'));
+
+    g1.append('g')
+      .call(d3.axisLeft(y1).ticks(5).tickFormat(d => `${d}%`))
+      .call(g => g.select('.domain').remove());
+
+    const sortedRoc = [...c1Rows].sort((a, b) =>
+      Number(a.false_alerts_per_district_year ?? 0) - Number(b.false_alerts_per_district_year ?? 0)
+    );
+
+    const rocLine = d3.line()
+      .x(d => x1(Number(d.false_alerts_per_district_year ?? 0)))
+      .y(d => {
+        const s = Number(d.sensitivity ?? 0);
+        return y1(s <= 1 ? s * 100 : s);
+      })
+      .curve(d3.curveMonotoneX);
+
+    g1.append('path')
+      .datum(sortedRoc)
+      .attr('fill', 'none')
+      .attr('stroke', '#4F46E5')
+      .attr('stroke-width', 2.5)
+      .attr('d', rocLine);
+
+    g1.selectAll('.roc-pt')
+      .data(c1Rows)
+      .join('circle')
+      .attr('cx', d => x1(Number(d.false_alerts_per_district_year ?? 0)))
+      .attr('cy', d => {
+        const s = Number(d.sensitivity ?? 0);
+        return y1(s <= 1 ? s * 100 : s);
+      })
+      .attr('r', d => Math.abs(Number(d.threshold ?? d.z_threshold) - state.threshold) < 0.1 ? 6.5 : 4)
+      .attr('fill', d => Math.abs(Number(d.threshold ?? d.z_threshold) - state.threshold) < 0.1 ? '#E11D48' : '#4F46E5')
+      .attr('stroke', '#FFFFFF')
+      .attr('stroke-width', 2)
+      .style('cursor', 'pointer')
+      .on('mousemove', (evt, d) => {
+        const s = Number(d.sensitivity ?? 0) * (Number(d.sensitivity) <= 1 ? 100 : 1);
+        showTooltip(`
+          <div style="font-weight:700;">Threshold Z ≥ ${d.threshold}σ</div>
+          <div>Sensitivity: <strong>${fmtDec(s, 1)}%</strong></div>
+          <div>False Alerts/Yr: <strong>${fmtDec(d.false_alerts_per_district_year, 2)}</strong></div>
+          <div>Median Delay: <strong>${d.median_days_to_detect} days</strong></div>
+        `, evt);
+      })
+      .on('mouseleave', hideTooltip);
+  }
+
+  function renderAll() {
+    renderKPIs();
+    renderMapAndRanking();
+    renderTimeSeries('#ts-svg');
+    if (state.view === 'trends') {
+      renderSeasonalityCalendar();
+      renderTimeSeries('#ts-trends-svg');
+    }
+    if (state.view === 'supplies') {
+      renderSuppliesAndC3();
+    }
+    renderAlertsAndC1();
+  }
+
+  window.addEventListener('resize', () => {
+    renderAll();
+  });
+
+  loadAllData();
+})();
+</script>
+</body>
+</html>
