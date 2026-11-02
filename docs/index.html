@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Episcope – Disease Surveillance Dashboard</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1c2430;--muted:#667085;--line:#e3e6eb;--accent:#1f6feb}
+@media (prefers-color-scheme: dark){:root{--bg:#12161c;--card:#1b212a;--text:#e8ecf2;--muted:#98a2b3;--line:#2a323d;--accent:#58a6ff}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{padding:24px 20px 8px;max-width:1200px;margin:auto}
+h1{margin:0;font-size:26px}
+header p{margin:4px 0 0;color:var(--muted)}
+main{max-width:1200px;margin:auto;padding:12px 20px 40px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.kpi,.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.kpi b{display:block;font-size:24px;color:var(--accent)}
+.kpi span{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+.wide{grid-column:1/-1}
+.card h2{margin:0 0 6px;font-size:16px}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:16px}
+@media (max-width:480px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Episcope Dashboard</h1>
+  <p id="sub">Loading…</p>
+</header>
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid">
+    <div class="card wide"><h2>Monthly cases by ICD-10 code</h2><div id="c1" style="height:380px"></div></div>
+    <div class="card"><h2>Cases by age group and sex</h2><div id="c2" style="height:340px"></div></div>
+    <div class="card"><h2>Cases by ICD-10 code</h2><div id="c3" style="height:340px"></div></div>
+    <div class="card wide"><h2>Top 20 districts by cases</h2><div id="c4" style="height:380px"></div></div>
+    <div class="card"><h2>Outcomes</h2><div id="c5" style="height:340px"></div></div>
+  </div>
+</main>
+<footer>Episcope Big Data Project · aggregated from the full encounters dataset</footer>
+
+<script src="data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script>
+const D = window.DATA;
+const n = x => x.toLocaleString("en-US");
+document.getElementById("sub").textContent = D.date_min + " to " + D.date_max + " · " + n(D.total) + " encounters";
+const kp = [
+  [n(D.total), "Total encounters"], [n(D.patients), "Unique patients"],
+  [D.districts, "Districts"], [D.facilities, "Facilities"],
+  [D.lab_pct + "%", "Lab confirmed"], [D.admit_pct + "%", "Admitted"],
+  [D.avg_delay + " d", "Avg reporting delay"]
+];
+document.getElementById("kpis").innerHTML = kp.map(k => `<div class="kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join("");
+
+const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+const base = {paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+  font:{color: dark ? "#e8ecf2" : "#1c2430"}, margin:{t:10,r:10,b:50,l:55},
+  legend:{orientation:"h", y:-0.2}};
+const cfg = {responsive:true, displaylogo:false};
+
+Plotly.newPlot("c1", Object.keys(D.monthly).map(c => ({x:D.months, y:D.monthly[c], name:c, type:"scatter", mode:"lines"})), base, cfg);
+Plotly.newPlot("c2", Object.keys(D.age_sex).map(s => ({x:D.age_groups, y:D.age_sex[s], name:s, type:"bar"})), {...base, barmode:"group"}, cfg);
+Plotly.newPlot("c3", [{x:D.code_names, y:D.code_counts, type:"bar", marker:{color:"#1f6feb"}}], base, cfg);
+Plotly.newPlot("c4", [
+  {x:D.dist_names, y:D.dist_cases, name:"Cases", type:"bar"},
+  {x:D.dist_names, y:D.dist_admitted, name:"Admitted", type:"bar"},
+  {x:D.dist_names, y:D.dist_lab, name:"Lab confirmed", type:"bar"}
+], {...base, barmode:"group"}, cfg);
+Plotly.newPlot("c5", [{labels:D.outcome_names, values:D.outcome_counts, type:"pie", hole:0.45}], base, cfg);
+</script>
+</body>
+</html>
